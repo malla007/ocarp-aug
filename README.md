@@ -1,4 +1,4 @@
-# ocarp-aug
+# Object Cut and Random Paste Augmentation (OCARP Augmentation)
 <b>Object Cut and Random Paste Augmentation Strategy for Semantic Segmentation of Crop and Weed</b>
 
 This is an augmentation library that extracts crop or weed objects from a crop and weed semantic segmentation dataset and batchwise augment images by pasting the extracted objects randomly on original images. 
@@ -8,7 +8,7 @@ This is an augmentation library that extracts crop or weed objects from a crop a
   <li>Extracts a selected object and the corresponding mask from an image</li>
   <li>Retrieve batch wise augmented images by pasting the extracted images randomly on original images</li>
 </ul>
-To better understand the augmentation strategy, check this.
+To better understand the augmentation strategy, check <a href = "Documents/OCARP Augmentation Strategy.pdf">this</a>.
 
 <h2>Prerequisites</h2>
 
@@ -38,7 +38,7 @@ To better understand the augmentation strategy, check this.
   <li>The height and width of the images and masks should be the same. Eg. 256x256</li>
 </ul>
 
-**Note : The library provides additional functionality to restructure and resize the dataset. It is available here.**
+**Note : The library provides additional functionality to restructure and resize the dataset. It is available <a href = "restructure.py">here</a>.**
 
 <h3>Requirements</h3>
 <ol>
@@ -81,7 +81,7 @@ valid_dataloader = OCARPDataloder(validation_dataset, False, blackHexCode, batch
 ```
 <h2>Examples</h2>
 
-A full example scenario of the augmentation strategy from training to evaluation is available here.
+A full example scenario of the augmentation strategy including training and evaluation is available <a href = "train.py">here</a>.
 
 <h2>Documentation</h2>
 
