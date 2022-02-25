@@ -76,9 +76,50 @@ grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(greenHexC
 
 Create Custom Data Generator:
 ```ruby
+from dataloader import OCARPDataloder
+
 train_dataloader = OCARPDataloder(train_dataset, True, blackHexCode, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = False, isOnlyPasteOnBg = True, objectPasteCount = 1)
 valid_dataloader = OCARPDataloder(validation_dataset, False, blackHexCode, batch_size=3, shuffle=False)
 ```
+<h2>Simple Augmentation Applied Training Pipeline</h2>
+
+```ruby
+from dataset import OCARPDataset
+from dataloader import OCARPDataloder
+
+#import dataset
+X_train = "path-to-train-images"
+Y_train = "path-to-train-masks"
+X_val = "path-to-val-images"
+Y_val = "path-to-val-masks"
+
+train_dataset = OCARPDataset(X_train, Y_train)
+validation_dataset = OCARPDataset(X_val, Y_val)
+
+#extract crop plant objects
+greenHexCode = '#00FF00'
+redHexCode = '#FF0000'
+blackHexCode = '#000000'
+objectPixelMinNumber = 200
+image_size = 256
+
+grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(greenHexCode, redHexCode, blackHexCode, objectPixelMinNumber, image_size)
+
+#create custom data generator
+train_dataloader = OCARPDataloder(train_dataset, True, blackHexCode, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = False, isOnlyPasteOnBg = True, objectPasteCount = 1)
+valid_dataloader = OCARPDataloder(validation_dataset, False, blackHexCode, batch_size=3, shuffle=False)
+
+#fit model and train
+history = model.fit(
+    train_dataloader, 
+    steps_per_epoch=len(train_dataloader), 
+    epochs=10, 
+    validation_data=valid_dataloader, 
+    validation_steps=len(valid_dataloader),
+    verbose = 1,
+)
+```
+
 <h2>Examples</h2>
 
 A full example scenario of the augmentation strategy including training and evaluation is available <a href = "train.py">here</a>.
