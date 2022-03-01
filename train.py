@@ -6,13 +6,17 @@ from unet import get_model, jacard_coef
 from tensorflow.keras.optimizers import Adadelta
 from tensorflow.keras.callbacks import ModelCheckpoint
 import numpy as np
-from tensorflow.keras.metrics import MeanIoU
-from tensorflow.keras.models import load_model
+from evaluate import evaluateModel, predictImage, plotGraph
+import os
 
 ################################################################
 seed=45
-image_size = 256
+image_size = 224
+TrainType = "OCARP_Aug#AB3"
+ModelType = "ocarp_aug_x50_nonaug_bgpaste_1paste_#AB3"
 original_folder = "CarrotDataset"
+epochs = 385
+
 folder = original_folder+"_resize_"+str(image_size)+"_split_seed_"+str(seed)
 root_directory = 'E:/Fyp/ImportantData/Dataset/'+folder
 print("Folder Path: ",root_directory)  
@@ -32,7 +36,7 @@ y_test= root_directory_test +'/lbl'
 green = '#00FF00'
 red = '#FF0000'
 black = '#000000'
-objectPixelThreshold = 200
+objectPixelThreshold = 50
 
 #Import Dataset and Extract objects
 train_dataset = OCARPDataset(X_train, y_train)
@@ -45,7 +49,9 @@ print("Images for Validation: ",len(validation_dataset))
 print("Images for Testing: ",len(test_dataset))
 
 #Plot the extracted objects and masks
+
 image_number_crop = random.randint(0, len(grabCuttedImageList)-1)
+#image_number_crop = 157
 plt.figure(figsize=(6, 3))
 plt.subplot(121)
 plt.title('Segmented Object')
@@ -54,6 +60,7 @@ plt.subplot(122)
 plt.title('Ground Truth')
 plt.imshow(transMaskList[image_number_crop])
 plt.show()
+
 ################################################################
 
 #Create Custom Dataloader and batchwise augment data
@@ -70,7 +77,6 @@ print("Iterations for Testing: ",len(test_dataloader))
 batch = random.randint(0, len(train_dataloader)-1)
 x, y = train_dataloader[batch]
 image = random.randint(0, len(x)-1)
-
 plt.figure(figsize=(12, 6))
 plt.subplot(121)
 plt.title('Training Image')
@@ -108,26 +114,27 @@ plt.show()
 ################################################################
 
 #import model
-model = get_model(n_classes=3, IMG_HEIGHT=256, IMG_WIDTH=256, IMG_CHANNELS=3)
+n_classes = 3
+IMG_CHANNELS = 3
+model = get_model(n_classes, image_size, image_size, IMG_CHANNELS)
 model.summary()
 
 ################################################################
 #Train Model 
 
-model_dir = 'C:/Users/Malinda/Desktop/Model/'+str(image_size)+'Size/UNET_Models/Carrot/OCARP_Aug/Cross_Val/'
-model_name = '_carrot_ocarp_aug_unet_seed_'+str(seed)+'.hdf5'
+model_dir = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
+model_name = '_carrot_'+ModelType+'_unet_seed_'+str(seed)+'.hdf5'
 model_path_arr = []
 for i in range(1,6):
   # model_path_arr.append(model_dir + 'model'+str(i) +model_name)
   model_path_arr.append(model_dir + 'model' +model_name)
-print(model_path_arr)
+print(model_path_arr[0])
 
 ## Train one model
 model_no = 1
 model_no = model_no-1
 metrics=['accuracy', jacard_coef]
 opt = Adadelta(learning_rate=1, rho=0.95, epsilon=1e-07, name="Adadelta")
-model = get_model()
 model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=metrics)
 print("\nModel :"+model_path_arr[model_no]+'\n')
 model_path = model_path_arr[model_no]
@@ -135,7 +142,7 @@ mc = ModelCheckpoint(model_path, monitor='val_accuracy', mode='max', save_best_o
 history = model.fit(
     train_dataloader, 
     steps_per_epoch=len(train_dataloader), 
-    epochs=358, 
+    epochs=epochs, 
     callbacks =[mc],
     validation_data=valid_dataloader, 
     validation_steps=len(valid_dataloader),
@@ -143,28 +150,9 @@ history = model.fit(
 )
 ################################################################
 
-#Plot training graph
-loss = history.history['loss']
-val_loss = history.history['val_loss']
-epochs = range(1, len(loss) + 1)
-plt.plot(epochs, loss, 'y', label='Training Loss')
-plt.plot(epochs, val_loss, 'r', label='Validation Loss')
-plt.title('Training and Validation loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-plt.show()
-
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
-
-plt.plot(epochs, acc, 'y', label='Training Accuracy')
-plt.plot(epochs, val_acc, 'r', label='Validation Accuracy')
-plt.title('Training and Validation Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
+#Plot training graph and save
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/Graphs/'
+plotGraph(history, model_name, path, seed, ModelType)
 
 ################################################################
 
@@ -181,90 +169,15 @@ print(len(test_image_dataset))
 
 model_path = model_path_arr[model_no]
 print(model_path)
-def getPercentage(value):
-    value = '{:.2f}'.format(value*100)
-    value = str(value)+str("%")
-    return value
 
-model = load_model(model_path,custom_objects={'jacard_coef':jacard_coef}, compile = False)
-
-#IOU
-y_pred=model.predict(test_image_dataset)
-y_pred_argmax=np.argmax(y_pred, axis=3)
-y_test_argmax=np.argmax(test_labels_cat, axis=3)
-
-
-#Using built in keras function for IoU
-n_classes = 3
-IOU_keras = MeanIoU(num_classes=n_classes)  
-IOU_keras.update_state(y_test_argmax, y_pred_argmax)
-print("---Test Set Accuracies---"+'\n')
-print("Mean IoU : ", getPercentage(IOU_keras.result().numpy()))
-
-'''
-IOU = true_positive / (true_positive + false_positive + false_negative)
-F1 Score =  (2*true_positive) / ((2*true_positive) + false_positive + false_negative)
-
--Weight Matrix -
-[[  0,0    0,1    0,2  ]
- [  1,0    1,1    1,2  ]
- [  2,0    2,1    2,2  ]]
- '''
-
-values = np.array(IOU_keras.get_weights()).reshape(n_classes,n_classes)
-class0_IoU = values[0,0]/(values[0,0] + values[1,0] + values[2,0] + values[0,1] + values[0,2])
-class1_IoU = values[1,1]/(values[1,1] + values[0,1] + values[2,1] + values[1,0] + values[1,2])
-class2_IoU = values[2,2]/(values[2,2] + values[0,2] + values[1,2] + values[2,0] + values[2,1])
-
-print("Weed IoU : "+str(getPercentage(class0_IoU)))
-print("Crop IoU : "+str(getPercentage(class1_IoU)))
-print("Soil IoU : "+str(getPercentage(class2_IoU))+"\n")
-
-class0_F1 = (values[0,0]*2)/((values[0,0]*2) + values[1,0] + values[2,0] + values[0,1] + values[0,2])
-class1_F1 = (values[1,1]*2)/((values[1,1]*2) + values[0,1] + values[2,1] + values[1,0] + values[1,2])
-class2_F1 = (values[2,2]*2)/((values[2,2]*2) + values[0,2] + values[1,2] + values[2,0] + values[2,1])
-averageF1 = (class0_F1+class1_F1+class2_F1)/3
-
-print("Average F1 : "+str(getPercentage(averageF1)))
-print("Weed F1 : "+str(getPercentage(class0_F1)))
-print("Crop F1 : "+str(getPercentage(class1_F1)))
-print("Soil F1 : "+str(getPercentage(class2_F1)))
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
+y_test_argmax, model = evaluateModel(model_path,jacard_coef, test_image_dataset, test_labels_cat, history, model_name, path)
 
 ################################################################
 
 #Predict Random Image and Display
-def label_to_rgb(predicted_image):
-    
-    Weed = '#FF0000'.lstrip('#')
-    Weed = np.array(tuple(int(Weed[i:i+2], 16) for i in (0, 2, 4))) # 255, 0, 0
-
-    Crop = '#00FF00'.lstrip('#')
-    Crop = np.array(tuple(int(Crop[i:i+2], 16) for i in (0, 2, 4))) #0, 255, 0
-
-    Unlabeled = '#000000'.lstrip('#') 
-    Unlabeled = np.array(tuple(int(Unlabeled[i:i+2], 16) for i in (0, 2, 4))) #0, 0, 0
-        
-    
-    segmented_img = np.empty((predicted_image.shape[0], predicted_image.shape[1], 3))
-    
-    segmented_img[(predicted_image == 0)] = Weed
-    segmented_img[(predicted_image == 1)] = Crop
-    segmented_img[(predicted_image == 2)] = Unlabeled
-    
-    segmented_img = segmented_img.astype(np.uint8)
-    return(segmented_img)
-
-test_img_number = 3
-test_img = test_image_dataset[test_img_number]
-ground_truth=y_test_argmax[test_img_number]
-#test_img_norm=test_img[:,:,0][:,:,None]
-test_img_input=np.expand_dims(test_img, 0)
-prediction = (model.predict(test_img_input))
-predicted_img=np.argmax(prediction, axis=3)[0,:,:]
-
-#Convert to RGB
-ground_truth = label_to_rgb(ground_truth)
-predicted_img = label_to_rgb(predicted_img)
+test_img_number = 0
+test_img, ground_truth, predicted_img = predictImage(test_img_number, model, test_image_dataset, y_test_argmax)
 
 plt.figure(figsize=(20, 14))
 plt.subplot(231)
@@ -279,3 +192,16 @@ plt.imshow(predicted_img)
 plt.show()
 
 ################################################################
+
+#Predict and Save all Images
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+"/Predictions/"
+print(path)
+os.mkdir(path)
+for test_img_number in range(0, len(test_image_dataset)):
+    test_img, ground_truth, predicted_img = predictImage(test_img_number, model, test_image_dataset, y_test_argmax)
+    plt.imsave(path+str(test_img_number+1)+"_"+ModelType+"_test_prediction_seed_"+str(seed)+".png", predicted_img)
+
+################################################################
+    
+
+
