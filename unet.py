@@ -8,7 +8,7 @@ def jacard_coef(y_true, y_pred):
     intersection = K.sum(y_true_f * y_pred_f)
     return (intersection + 1.0) / (K.sum(y_true_f) + K.sum(y_pred_f) - intersection + 1.0)
 
-def get_model(n_classes=3, IMG_HEIGHT=256, IMG_WIDTH=256, IMG_CHANNELS=3):
+def get_model(n_classes, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
     inputs = Input((IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
     s = inputs
 
