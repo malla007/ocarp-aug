@@ -10,6 +10,8 @@ This is an augmentation library that extracts crop or weed objects from a crop a
 </ul>
 To better understand the augmentation strategy, check <a href = "Documents/OCARP Augmentation Strategy.pdf">this</a>.
 
+![ezgif-5-546b16de96](https://user-images.githubusercontent.com/74457911/156368127-44cac789-aea7-4cca-94af-5c8f9c63e3af.gif)
+
 <h2>Prerequisites</h2>
 
 <h3>Dataset Structure</h3>
@@ -35,7 +37,7 @@ To better understand the augmentation strategy, check <a href = "Documents/OCARP
                       └── pic2.jpg                 
 <h3>Image Size</h3>
 <ul>
-  <li>The height and width of the images and masks should be the same. Eg. 256x256</li>
+  <li>The height and width of the images and masks should be the same. Eg. 256 x 256</li>
 </ul>
 
 **Note : The library provides additional functionality to restructure and resize the dataset. It is available <a href = "restructure.py">here</a>.**
