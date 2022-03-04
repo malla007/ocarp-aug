@@ -4,56 +4,77 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os
 
+
 def getPercentage(value):
     value = '{:.2f}'.format(value*100)
     value = str(value)+str("%")
     return value
 
-def evaluateModel(model_path,jacard_coef, test_image_dataset, test_labels_cat, history, model_name, path):
-    model = load_model(model_path,custom_objects={'jacard_coef':jacard_coef}, compile = False)
-    
-    #IOU
-    y_pred=model.predict(test_image_dataset)
-    y_pred_argmax=np.argmax(y_pred, axis=3)
-    y_test_argmax=np.argmax(test_labels_cat, axis=3)
-    
-    
-    #Using built in keras function for IoU
-    n_classes = 3
-    IOU_keras = MeanIoU(num_classes=n_classes)  
-    IOU_keras.update_state(y_test_argmax, y_pred_argmax)
-    print("---Test Set Accuracies---"+'\n')
-    print("Mean IoU : ", getPercentage(IOU_keras.result().numpy()))
-    
+def calculateMIOU(values, n_classes):
+
     '''
     IOU = true_positive / (true_positive + false_positive + false_negative)
-    F1 Score =  (2*true_positive) / ((2*true_positive) + false_positive + false_negative)
+    '''
     
-    -Weight Matrix -
-    [[  0,0    0,1    0,2  ]
-     [  1,0    1,1    1,2  ]
-     [  2,0    2,1    2,2  ]]
-     '''
-    
-    values = np.array(IOU_keras.get_weights()).reshape(n_classes,n_classes)
     class0_IoU = values[0,0]/(values[0,0] + values[1,0] + values[2,0] + values[0,1] + values[0,2])
     class1_IoU = values[1,1]/(values[1,1] + values[0,1] + values[2,1] + values[1,0] + values[1,2])
     class2_IoU = values[2,2]/(values[2,2] + values[0,2] + values[1,2] + values[2,0] + values[2,1])
     
-    print("Weed IoU : "+str(getPercentage(class0_IoU)))
-    print("Crop IoU : "+str(getPercentage(class1_IoU)))
-    print("Soil IoU : "+str(getPercentage(class2_IoU))+"\n")
+    return class0_IoU, class1_IoU, class2_IoU
+    
+def calculateDSC(values, n_classes):
+
+    '''
+    F1 Score =  (2*true_positive) / ((2*true_positive) + false_positive + false_negative)
+    '''
     
     class0_F1 = (values[0,0]*2)/((values[0,0]*2) + values[1,0] + values[2,0] + values[0,1] + values[0,2])
     class1_F1 = (values[1,1]*2)/((values[1,1]*2) + values[0,1] + values[2,1] + values[1,0] + values[1,2])
     class2_F1 = (values[2,2]*2)/((values[2,2]*2) + values[0,2] + values[1,2] + values[2,0] + values[2,1])
-    averageF1 = (class0_F1+class1_F1+class2_F1)/3
+    averageF1 = (class0_F1+class1_F1+class2_F1)/n_classes
     
+    return class0_F1, class1_F1, class2_F1, averageF1
+
+
+def evaluateModel(model_path,jacard_coef, test_image_dataset, test_labels_cat, history, model_name, path):
+    model = load_model(model_path,custom_objects={'jacard_coef':jacard_coef}, compile = False)
+    
+    #Predict the dataset
+    y_pred=model.predict(test_image_dataset)
+    y_pred_argmax=np.argmax(y_pred, axis=3)
+    y_test_argmax=np.argmax(test_labels_cat, axis=3)
+ 
+    n_classes = 3
+    #Calculate meanIoU using Keras api
+    IOU_keras = MeanIoU(num_classes=n_classes)  
+    IOU_keras.update_state(y_test_argmax, y_pred_argmax)
+    
+    '''
+    -Confusion Matrix -
+    [[  0,0    0,1    0,2  ]
+     [  1,0    1,1    1,2  ]
+     [  2,0    2,1    2,2  ]]
+    
+    Refer : https://i.stack.imgur.com/AuTKP.png
+    '''
+    #Confusion Matrix
+    values = np.array(IOU_keras.get_weights()).reshape(n_classes,n_classes)
+    #Calculate MIoU per class
+    class0_IoU, class1_IoU, class2_IoU = calculateMIOU(values, n_classes)
+    #Calculate DSC/F1 score per class
+    class0_F1, class1_F1, class2_F1, averageF1 = calculateDSC(values, n_classes)
+    
+    print("---Test Set Accuracies---"+'\n')
+    print("Mean IoU : ", getPercentage(IOU_keras.result().numpy()))
+    print("Weed IoU : "+str(getPercentage(class0_IoU)))
+    print("Crop IoU : "+str(getPercentage(class1_IoU)))
+    print("Soil IoU : "+str(getPercentage(class2_IoU))+"\n")
+
     print("Average F1 : "+str(getPercentage(averageF1)))
     print("Weed F1 : "+str(getPercentage(class0_F1)))
     print("Crop F1 : "+str(getPercentage(class1_F1)))
-    print("Soil F1 : "+str(getPercentage(class2_F1)))
-    
+    print("Soil F1 : "+str(getPercentage(class2_F1))+"\n")
+
     f = open(path+'model' +model_name.replace(".hdf5","")+".txt", "w")
     highest = max(history.history['val_accuracy'])
 
@@ -66,7 +87,7 @@ def evaluateModel(model_path,jacard_coef, test_image_dataset, test_labels_cat, h
             "Crop F1 : "+str(getPercentage(class1_F1))+"\n"+
             "Soil F1 : "+str(getPercentage(class2_F1))+"\n")
     f.close()
-    
+
     return y_test_argmax, model
 
 def label_to_rgb(predicted_image):
