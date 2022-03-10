@@ -43,4 +43,3 @@ def restructureDataset(path, original_folder, image_size ,seed, trainRatio, vali
     output_folder_path = save_folder_path + "_split_seed_"+str(seed)
     splitfolders.ratio(save_folder_path, output=output_folder_path, seed=seed, ratio=(trainRatio, validRatio, testRatio), group_prefix=None)
     shutil.rmtree(save_folder_path, ignore_errors=True)
-   

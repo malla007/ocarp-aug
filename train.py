@@ -1,21 +1,21 @@
-from dataset import OCARPDataset
-from dataloader import OCARPDataloder
-from matplotlib import pyplot as plt
+from ocarpaug import OCARPDataset, OCARPDataloder
+from utils import get_model, jacard_coef, evaluateModel, predictImage, plotGraph
+
+import os
 import random
-from unet import get_model, jacard_coef
+import numpy as np
+from matplotlib import pyplot as plt
 from tensorflow.keras.optimizers import Adadelta
 from tensorflow.keras.callbacks import ModelCheckpoint
-import numpy as np
-from evaluate import evaluateModel, predictImage, plotGraph
-import os
 
 ################################################################
 seed=45
 image_size = 224
-TrainType = "OCARP_Aug#AB3"
-ModelType = "ocarp_aug_x50_nonaug_bgpaste_1paste_#AB3"
-original_folder = "CarrotDataset"
-epochs = 385
+TrainType = "OCARP_Aug#AB11"
+ModelType = "ocarp_aug_x50_aug_nonbgpaste_1paste_#AB11"
+original_folder = "SugarbeetDataset"
+dataset = "Sugarbeet"
+epochs = 77
 
 folder = original_folder+"_resize_"+str(image_size)+"_split_seed_"+str(seed)
 root_directory = 'E:/Fyp/ImportantData/Dataset/'+folder
@@ -36,11 +36,12 @@ y_test= root_directory_test +'/lbl'
 green = '#00FF00'
 red = '#FF0000'
 black = '#000000'
-objectPixelThreshold = 50
+objectPixelMinimumCount = 50
+hexArray = [green, red, black]
 
 #Import Dataset and Extract objects
 train_dataset = OCARPDataset(X_train, y_train)
-grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(green, red, black, objectPixelThreshold, image_size)
+grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(hexArray, objectPixelMinimumCount)
 validation_dataset = OCARPDataset(X_val, y_val)
 test_dataset = OCARPDataset(X_test, y_test)
 
@@ -64,19 +65,19 @@ plt.show()
 ################################################################
 
 #Create Custom Dataloader and batchwise augment data
-train_dataloader = OCARPDataloder(train_dataset, True, black, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = False, isOnlyPasteOnBg = True, objectPasteCount = 1)
-#train_dataloader = OCARPDataloder(train_dataset, False , black, batch_size=3, shuffle=False)
-valid_dataloader = OCARPDataloder(validation_dataset, False, black, batch_size=3, shuffle=False)
-test_dataloader = OCARPDataloder(test_dataset, False, black, batch_size=1, shuffle=False)
+train_dataloader = OCARPDataloder(train_dataset, True, hexArray, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = True, isOnlyPasteOnBg = True, objectPasteCount = 1)
+#train_dataloader = OCARPDataloder(train_dataset, False , hexArray, batch_size=3, shuffle=False)
+valid_dataloader = OCARPDataloder(validation_dataset, False, hexArray, batch_size=3, shuffle=False)
+test_dataloader = OCARPDataloder(test_dataset, False, hexArray, batch_size=1, shuffle=False)
 
 print("Iterations per Epoch for Training: ",len(train_dataloader))
 print("Iterations per Epoch for Validation: ",len(valid_dataloader))
 print("Iterations for Testing: ",len(test_dataloader))
 
 #Plot random images and masks from train, validation and test 
-batch = random.randint(0, len(train_dataloader)-1)
+batch = 0
 x, y = train_dataloader[batch]
-image = random.randint(0, len(x)-1)
+image = 0
 plt.figure(figsize=(12, 6))
 plt.subplot(121)
 plt.title('Training Image')
@@ -122,8 +123,8 @@ model.summary()
 ################################################################
 #Train Model 
 
-model_dir = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
-model_name = '_carrot_'+ModelType+'_unet_seed_'+str(seed)+'.hdf5'
+model_dir = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/'+dataset+'/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
+model_name = '_'+dataset.lower()+'_'+ModelType+'_unet_seed_'+str(seed)+'.hdf5'
 model_path_arr = []
 for i in range(1,6):
   # model_path_arr.append(model_dir + 'model'+str(i) +model_name)
@@ -151,7 +152,7 @@ history = model.fit(
 ################################################################
 
 #Plot training graph and save
-path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/Graphs/'
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/'+dataset+'/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/Graphs/'
 plotGraph(history, model_name, path, seed, ModelType)
 
 ################################################################
@@ -169,8 +170,7 @@ print(len(test_image_dataset))
 
 model_path = model_path_arr[model_no]
 print(model_path)
-
-path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/'+dataset+'/'+TrainType+'/Cross_Val/Seed_'+str(seed)+'/'
 y_test_argmax, model = evaluateModel(model_path,jacard_coef, test_image_dataset, test_labels_cat, history, model_name, path)
 
 ################################################################
@@ -194,7 +194,7 @@ plt.show()
 ################################################################
 
 #Predict and Save all Images
-path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/Carrot/'+TrainType+'/Cross_Val/Seed_'+str(seed)+"/Predictions/"
+path = 'E:/Fyp/ImportantData/Implementation/ImplementationRGBUNET/PCPythonFiles/Library/ocarp-aug/Evaluate/Models/'+str(image_size)+'Size/UNET_Models/'+dataset+'/'+TrainType+'/Cross_Val/Seed_'+str(seed)+"/Predictions/"
 print(path)
 os.mkdir(path)
 for test_img_number in range(0, len(test_image_dataset)):
