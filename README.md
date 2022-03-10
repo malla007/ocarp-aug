@@ -54,7 +54,7 @@ To better understand the augmentation strategy, check <a href = "Documents/OCARP
 
 Importing Dataset :
 ```ruby
-from dataset import OCARPDataset
+from ocarpaug import OCARPDataset
 
 X_train = "path-to-train-images"
 Y_train = "path-to-train-masks"
@@ -70,24 +70,23 @@ Extract Objects (Crop Plants):
 greenHexCode = '#00FF00'
 redHexCode = '#FF0000'
 blackHexCode = '#000000'
-objectPixelMinNumber = 200
-image_size = 256
+objectPixelMinimumCount = 50
+hexArray = [green, red, black]
 
-grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(greenHexCode, redHexCode, blackHexCode, objectPixelMinNumber, image_size)
+grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(hexArray, objectPixelMinimumCount)
 ```
 
 Create Custom Data Generator:
 ```ruby
-from dataloader import OCARPDataloder
+from ocarpaug import OCARPDataloder
 
-train_dataloader = OCARPDataloder(train_dataset, True, blackHexCode, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = False, isOnlyPasteOnBg = True, objectPasteCount = 1)
-valid_dataloader = OCARPDataloder(validation_dataset, False, blackHexCode, batch_size=3, shuffle=False)
+train_dataloader = OCARPDataloder(train_dataset, True, hexArray, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = True, isOnlyPasteOnBg = True, objectPasteCount = 1)
+valid_dataloader = OCARPDataloder(validation_dataset, False, hexArray, batch_size=3, shuffle=False)
 ```
 <h2>Simple Augmentation Applied Training Pipeline</h2>
 
 ```ruby
-from dataset import OCARPDataset
-from dataloader import OCARPDataloder
+from ocarpaug import OCARPDataset, OCARPDataloder
 
 #import dataset
 X_train = "path-to-train-images"
@@ -102,14 +101,14 @@ validation_dataset = OCARPDataset(X_val, Y_val)
 greenHexCode = '#00FF00'
 redHexCode = '#FF0000'
 blackHexCode = '#000000'
-objectPixelMinNumber = 200
-image_size = 256
+objectPixelMinimumCount = 50
+hexArray = [green, red, black]
 
-grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(greenHexCode, redHexCode, blackHexCode, objectPixelMinNumber, image_size)
+grabCuttedImageList, transMaskList = train_dataset.ocarpExtractObjects(hexArray, objectPixelMinimumCount)
 
 #create custom data generator
-train_dataloader = OCARPDataloder(train_dataset, True, blackHexCode, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = False, isOnlyPasteOnBg = True, objectPasteCount = 1)
-valid_dataloader = OCARPDataloder(validation_dataset, False, blackHexCode, batch_size=3, shuffle=False)
+train_dataloader = OCARPDataloder(train_dataset, True, hexArray, batch_size=3, shuffle=False, grabCuttedImageList = grabCuttedImageList, transMaskList = transMaskList, isPasteAugment = True, isOnlyPasteOnBg = True, objectPasteCount = 1)
+valid_dataloader = OCARPDataloder(validation_dataset, False, hexArray, batch_size=3, shuffle=False)
 
 #fit model and train
 history = model.fit(
