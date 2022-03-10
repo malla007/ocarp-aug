@@ -1,8 +1,22 @@
 import cv2
+import random
 import numpy as np
 from PIL import Image
-import random
-from extract import breakImageParts
+from tensorflow.keras.utils import to_categorical, Sequence
+
+#Break the image into 16 different parts
+def breakImageParts(image, crop_box_size):
+    image = cv2.cvtColor(image,cv2.COLOR_BGR2RGBA)
+    image = Image.fromarray(image)
+    crop_boxes_array = []
+    for i in range(0,4):
+        for j in range(0,4):
+            x = crop_box_size*i
+            y = crop_box_size*j
+            area = (x, y, x+crop_box_size, y+crop_box_size)
+            cropped_img = image.crop(area)
+            crop_boxes_array.append(cropped_img)
+    return crop_boxes_array  
 
 #Paste the obtained object transparent image and mask on top of original images
 def pasteCropBoxOnImageAndMask(only_background_crop_box_index_array, original_mask, original_image, grabCuttedImageList, transMaskList, crop_box_size, isPasteAugment, isOnlyPasteOnBg):
@@ -108,16 +122,16 @@ def findIndexAllBoxesWithOnlyBackground(crop_boxes_array, backgroundHex):
     only_background_crop_box_index_array = [i for i,v in enumerate(only_background_crop_box_index_array) if v == h*w]
     return only_background_crop_box_index_array
 
-def rgb_to_2D_label(label):
+def rgb_to_2D_label(label, hexArray):
 
   Weed = '#FF0000'.lstrip('#')
-  Weed = np.array(tuple(int(Weed[i:i+2], 16) for i in (0, 2, 4))) # 255, 0, 0
+  Weed = np.array(tuple(int(Weed[i:i+2], 16) for i in (0, 2, 4))) 
 
   Crop = '#00FF00'.lstrip('#')
-  Crop = np.array(tuple(int(Crop[i:i+2], 16) for i in (0, 2, 4))) #0, 255, 0
+  Crop = np.array(tuple(int(Crop[i:i+2], 16) for i in (0, 2, 4))) 
 
-  Unlabeled = '#000000'.lstrip('#') 
-  Unlabeled = np.array(tuple(int(Unlabeled[i:i+2], 16) for i in (0, 2, 4))) #0, 0, 0
+  Unlabeled = hexArray[2].lstrip('#') 
+  Unlabeled = np.array(tuple(int(Unlabeled[i:i+2], 16) for i in (0, 2, 4))) 
 
   label_seg = np.zeros(label.shape,dtype=np.uint8)
   label_seg [np.all(label == Weed,axis=-1)] = 0
@@ -127,3 +141,54 @@ def rgb_to_2D_label(label):
   label_seg = label_seg[:,:,0]  
   
   return label_seg
+
+class OCARPDataloder(Sequence):    
+    def __init__(self, dataset, isOcarp , hexArray ,batch_size=1, shuffle=False, grabCuttedImageList = None, transMaskList = None, isPasteAugment = True, isOnlyPasteOnBg = True,  objectPasteCount = 1):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.indexes = np.arange(len(dataset))
+        self.on_epoch_end()
+        self.grabCuttedImageList = grabCuttedImageList
+        self.transMaskList = transMaskList
+        self.isOcarp = isOcarp
+        self.hexArray = hexArray
+        self.isPasteAugment = isPasteAugment
+        self.isOnlyPasteOnBg = isOnlyPasteOnBg
+        self.objectPasteCount = objectPasteCount
+
+    def __getitem__(self, i):
+        # Collect data in batches
+        start = i * self.batch_size
+        stop = (i + 1) * self.batch_size
+        X = []
+        y = []
+        for j in range(start, stop):
+            image = self.dataset[j][0]
+            mask = self.dataset[j][1]
+
+            if self.isOcarp == True:
+              for i in range(0, self.objectPasteCount):
+                #Paste extracted object on an original image and mask
+                image, mask = pasteOnOriginalImage(image, mask, self.grabCuttedImageList, self.transMaskList, self.hexArray[2], self.isPasteAugment, self.isOnlyPasteOnBg)
+
+            #Convert rgb to 2d label
+            label = rgb_to_2D_label(mask, self.hexArray)
+
+            X.append(image)
+            y.append(label)
+
+        X = np.array(X)
+        y = np.array(y)
+        y = np.expand_dims(y, axis=3)
+        n_classes = 3
+        #One Hot encoding
+        y = to_categorical(y, num_classes=n_classes)
+        return X, y
+    
+    def __len__(self):
+        return len(self.indexes) // self.batch_size
+    
+    def on_epoch_end(self):
+        if self.shuffle:
+            self.indexes = np.random.permutation(self.indexes)  
