@@ -40,8 +40,6 @@ To better understand the augmentation strategy, check <a href = "Documents/OCARP
   <li>The height and width of the images and masks should be the same. Eg. 256 x 256</li>
 </ul>
 
-**Note : The library provides additional functionality to restructure and resize the dataset. It is available <a href = "restructure.py">here</a>.**
-
 <h3>Requirements</h3>
 <ol>
   <li>NumPy</li>
@@ -127,5 +125,5 @@ A full example scenario of the augmentation strategy including training and eval
 
 <h2>Documentation</h2>
 
-Latest documentation is avaliable on Read the Docs.
+Latest documentation is avaliable on <a href = "https://github.com/malla007/ocarp-aug/wiki/Documentation">Read the Docs</a>.
 
