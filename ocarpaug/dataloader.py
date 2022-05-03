@@ -36,6 +36,7 @@ def pasteCropBoxOnImageAndMask(only_background_crop_box_index_array, original_ma
     if selected_pos != None:
       for position in only_background_crop_box_index_array:
           count = 0
+          #Traverse through the 4x4 blocks
           for e in range(0,4):
               for j in range(0,4):
                   x = crop_box_size*e
@@ -53,7 +54,7 @@ def pasteCropBoxOnImageAndMask(only_background_crop_box_index_array, original_ma
                           isFlip = False
                           isRotate = False
                           if isPasteAugment:
-                            #Rotate the object randomly
+                            #Rotate -90, 180, 90 degrees the object randomly
                             isRotate = random.choice([True, False])
                             if isRotate:
                                 rotation = [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]
@@ -62,17 +63,18 @@ def pasteCropBoxOnImageAndMask(only_background_crop_box_index_array, original_ma
                                 transMaskImage = cv2.rotate(transMaskImage, rotate)
                                 isFlip= random.choice([True, False])
                                 if isFlip:
-                                    #Flip the object randomly  
+                                    #Horizontal Flip the object randomly  
                                     grabCuttedImage = cv2.flip(grabCuttedImage, 0)
                                     transMaskImage = cv2.flip(transMaskImage, 0)
                             else:
                                 isFlip = True
-                                #Flip the object randomly    
+                                #Horizontal Flip the object randomly    
                                 grabCuttedImage = cv2.flip(grabCuttedImage, 0)
                                 transMaskImage = cv2.flip(transMaskImage, 0)
 
                           grabCuttedImage = Image.fromarray(grabCuttedImage)
                           transMaskImage = Image.fromarray(transMaskImage)
+                          #Paste object mask and image on original image
                           image.paste(grabCuttedImage, paste_position, grabCuttedImage)
                           mask.paste(transMaskImage, paste_position, transMaskImage)
                   count = count+1
